@@ -1,10 +1,23 @@
 require 'mechanize'
 
+@a = Mechanize.new
+@routes = Hash.new
+@stops = Hash.new
+
+
+html = false
+agency = "mbta"
+
 stops = [
   {
     agency: "mbta",
     route: 66,
     id: 2560
+  },
+  {
+    agency: "mbta",
+    route: "86",
+    id: 1049
   },
   {
     agency: "mbta",
@@ -15,15 +28,9 @@ stops = [
     agency: "mbta",
     route: "70A",
     id: 1049
-  },
-  {
-    agency: "mbta",
-    route: "86",
-    id: 1049
   }
 ]
 
-@a = Mechanize.new
 
 def get_stop_tag(agency, route, keywords)
   routes = @a.get("http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a=#{agency}&r=#{route}")
@@ -39,13 +46,35 @@ def predict(agency, stopId, route)
   return @a.page.xml.to_s.scan(/minutes="(\d+)"/).map{ |r| r.first.to_i }
 end
 
-# predictions = predict("mbta", 2650)
-# predictions.each { |r| puts "Arrives in #{r.first.first} minutes"}
-
-puts "<ul>"
-stops.each do |stop|
-  puts "<li>#{stop[:route]}: #{predict(stop[:agency], stop[:id], stop[:route])}</li>"
+def route_list(agency="mbta")
+  @a.get("http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a=#{agency}").xml.to_s.scan(/<route tag="([\d\w]+)" title="([\w\d\/]+)"\/>/).map {|tag, title| @routes[title] = {title: title, tag: tag} }
+  return @routes
 end
-puts "</ul>"
 
-get_stop_tag("mbta", "86", "Everett")
+def stops_list(route, agency="mbta")
+  stops = @a.get("http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a=#{agency}&r=#{route}").xml.to_s
+  stops = stops.scan(/<stop tag="([\w\d]+)" title="([\w\s@]+)" lat="([\d\.]+)" lon="([-+\d\.]+)" stopId="(\d+)".>/).map { |tag, title, lat, lon, stop_id| @stops[stop_id] = {tag: tag, title: title, lat: lat, lon: lon, id: stop_id} }
+  return @stops
+end
+
+if ARGV.empty?
+  puts "<ul>" if html
+  stops.each do |stop|
+    all_busses = predict(stop[:agency], stop[:id], stop[:route])
+    first_bus = all_busses.shift
+    first_bus = "Arriving" if first_bus == 0
+    info = "#{stop[:route]}: \n\tFirst bus: \t#{first_bus} minutes\n\tNext: \t\t#{all_busses}"
+    if html
+      puts "<li>#{info}</li>"
+    else
+      puts info
+    end
+  end
+  puts "</ul>" if html
+end
+
+if ARGV[0] == "-s"
+  p route_list
+  p stops_list(86)
+  get_stop_tag("mbta", ARGV[1], ARGV[2])
+end
