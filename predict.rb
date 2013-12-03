@@ -73,8 +73,13 @@ else
   puts "<ul>" if html
   stops.each do |stop|
     result = predict(stop[:agency], stop[:id], stop[:route])
+    if result[:first_bus].to_i > 1
+      s = "s"
+    else
+      s = ""
+    end
     if result[:running]
-      info = "#{stop[:route]}: \n\tFirst bus: \t#{result[:first_bus]} minutes\n\tNext: \t\t#{result[:next_busses]}"
+      info = "#{stop[:route]}: \n\tFirst bus: \t#{result[:first_bus]} minute#{s}\n\tNext: \t\t#{result[:next_busses]}"
       if html
         puts "<li>#{info}</li>"
       else
