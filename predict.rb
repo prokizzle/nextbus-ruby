@@ -1,5 +1,7 @@
 require 'mechanize'
+require 'time-lord'
 
+# [todo] - convert to rails project
 @a = Mechanize.new
 @routes = Hash.new
 @stops = Hash.new
@@ -7,7 +9,7 @@ require 'mechanize'
 
 html = false
 agency = "mbta"
-
+# [todo] - move favorite stops into yaml file
 stops = [
   {
     agency: "mbta",
@@ -32,21 +34,20 @@ stops = [
 ]
 
 
+# [todo] - return results as a hash
 def get_stop_tag(agency, route, keywords)
   routes = @a.get("http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a=#{agency}&r=#{route}")
   q = routes.xml.to_s.scan(/<stop tag=(.+) title="(.+)" lat.+\/>/)
   g = q.select {|r| !(r[1] =~ /#{keywords}/).nil?}
   g.map! { |r| [r[0].gsub('"', '').to_i, r[1].to_s] }
   g.each { |r| puts "tag: #{r[0].to_s}, title: #{r[1]}" }
-
 end
 
 def predict(agency, stopId, route)
   @a.get("http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=#{agency}&stopId=#{stopId}&r=#{route}")
-  all_busses = @a.page.xml.to_s.scan(/minutes="(\d+)"/).map{ |r| r.first.to_i }
+  all_busses = @a.page.xml.to_s.scan(/epochTime="(\d+)".+minutes="(\d+)"/).map{ |e, m| {epoch: Time.at(e.to_i/1000).ago.to_words, minutes: m}}
   unless all_busses.empty?
-    first_bus = all_busses.shift
-    first_bus = "Arriving" if first_bus == 0
+    first_bus = all_busses.shift[:epoch]
     return {first_bus: first_bus, next_busses: all_busses, running: true}
   else
     return {running: false}
@@ -65,21 +66,19 @@ def stops_list(route, agency="mbta")
 end
 
 
-
+# [todo] - implement real options parser
+# [todo] - implement bootstrap styling for html output
 if ARGV[0] == "-s"
+  # [todo] - make search non-mbta specific
   get_stop_tag("mbta", ARGV[1], ARGV[2])
 else
   puts "#{ARGV[1]}: #{predict("mbta", ARGV[0], ARGV[1])}" unless ARGV.empty?
   puts "<ul>" if html
   stops.each do |stop|
     result = predict(stop[:agency], stop[:id], stop[:route])
-    if result[:first_bus].to_i > 1
-      s = "s"
-    else
-      s = ""
-    end
+
     if result[:running]
-      info = "#{stop[:route]}: \n\tFirst bus: \t#{result[:first_bus]} minute#{s}\n\tNext: \t\t#{result[:next_busses]}"
+      info = "#{stop[:route]}:\tFirst bus: \t#{result[:first_bus]} \n\tNext: \t\t#{ result[:next_busses].map { |r| r[:minutes].to_i } }"
       if html
         puts "<li>#{info}</li>"
       else

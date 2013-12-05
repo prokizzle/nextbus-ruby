@@ -1,0 +1,31 @@
+# watson rc
+# watson - inline issue manager
+# [goosecode] labs 
+
+
+# Directories 
+[dirs] 
+./
+
+ 
+# Tags 
+[tags] 
+fix
+review
+todo
+
+
+# Ignores
+[ignore]
+.git
+*.swp
+
+
+[github_api]
+96409bdfc312cd39d3c7008a026e2c11bb2fe0fa
+
+
+[github_repo]
+prokizzle/nextbus-ruby
+
+
